@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airline Reviews</title>
+    <style>
+        .review-list {
+            font-size: 10px;
+            line-height: 1.5;
+            font-family: Arial, sans-serif;
+        }
+
+        .review-list li {
+            margin-bottom: 10px;
+        }
+
+        .review-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* Style the sentiment score section */
+        .score {
+            color: #007BFF;
+            font-weight: bold;
+        }
+
+        /* Add some padding and style for form */
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        select, button {
+            margin: 5px 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Airline Review Sentiment Analysis</h1>
+
+    <form method="POST">
+        <label for="airline">Select Airline:</label>
+        <select name="airline" id="airline" required>
+            <option value="">--Select Airline--</option>
+            {% for airline in airlines %}
+                <option value="{{ airline }}" {% if airline == selected_airline %}selected{% endif %}>{{ airline }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="month">Select Month:</label>
+        <select name="month" id="month" required>
+            <option value="">--Select Month--</option>
+            {% for month in months %}
+                <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Filter Reviews</button>
+    </form>
+
+    <hr>
+
+    {% if t_reviews %}
+        <h2 class="review-header">Top Reviews for {{ selected_airline }} in {{ selected_month }}:</h2>
+        <div class="review-list">
+            <ul>
+                {% for t_reviews, score in t_reviews %}
+                    <li>
+                        <p><strong>Review:</strong> {{ t_reviews }}</p>
+                        <p><strong>Score:</strong> <span class="score">{{ score }}</span></p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}   
+    
+        {% if b_reviews %}
+        <h2 class="review-header">Lowest Reviews for {{ selected_airline }} in {{ selected_month }}:</h2>
+        <div class="review-list">
+            <ul>
+                {% for b_reviews, score in b_reviews %}
+                    <li>
+                        <p><strong>Review:</strong> {{ b_reviews }}</p>
+                        <p><strong>Score:</strong> <span class="score">{{ score }}</span></p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    {% if not t_reviews and not b_reviews %}
+        <p>No reviews found for the selected filters.</p>
+    {% endif %}
+
+        {% if positive_window %}
+        <h2 class="review-header">Most Positive Text Segment (Sliding Window):</h2>
+        <p><strong>Text:</strong> {{ positive_window.paragraph }}</p>
+        <p><strong>Score:</strong> <span class="score">{{ positive_window.score }}</span></p>
+    {% endif %}
+
+    {% if negative_window %}
+        <h2 class="review-header">Most Negative Text Segment (Sliding Window):</h2>
+        <p><strong>Text:</strong> {{ negative_window.paragraph }}</p>
+        <p><strong>Score:</strong> <span class="score">{{ negative_window.score }}</span></p>
+    {% endif %}
+</body>
+</html>
