@@ -20,14 +20,40 @@
             </select>
 
             <label for="month">Select Month:</label>
-            <select name="month" id="month" required>
-                {% for month in months %}
-                    <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
-                {% endfor %}
-            </select>
+                <select name="month" id="month" required>
+                    <option value="">--Select Month--</option>
+                    <option value="All" {% if selected_month == 'All' %}selected{% endif %}>All</option>  <!-- Add 'All' option here -->
+                    {% for month in months %}
+                        <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+                    {% endfor %}
+                </select>
 
             <button type="submit">Filter Reviews</button>
         </form>
+
+        <!-- Top 3 Airlines across all months -->
+            {% if top_airlines %}
+                <div class="top-airlines">
+                    <h2>Top 3 Airlines (All Months)</h2>
+                    <ul>
+                        {% for airline, score in top_airlines %}
+                            <li><strong>{{ airline }}</strong> - Average Score: {{ score|round(2) }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- Top 3 Airlines for selected month -->
+            {% if top_airlines_month %}
+                <div class="top-airlines-month">
+                    <h2>Top 3 Airlines for {{ selected_month }}</h2>
+                    <ul>
+                        {% for airline, score in top_airlines_month %}
+                            <li><strong>{{ airline }}</strong> - Average Score: {{ score|round(2) }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
 
         <div class="section">
             {% if t_reviews %}
