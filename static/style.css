@@ -116,3 +116,10 @@ button:hover {
         gap: 16px;
     }
 }
+
+.more-link{
+  display:inline; cursor:pointer; font-weight:600;
+  color:#2563eb; text-decoration:none; border-radius:6px;
+}
+.more-link:hover{ text-decoration:underline; }
+.more-link:focus-visible{ outline:3px solid #93c5fd; outline-offset:2px; }

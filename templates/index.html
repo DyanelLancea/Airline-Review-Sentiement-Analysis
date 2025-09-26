@@ -74,7 +74,84 @@
                     <div class="review-score negative">Score: {{ negative_window.score }}</div>
                 </div>
             {% endif %}
+            <div class="window-section">
+            {% if pos_segment %}
+                <div class="window-box">
+                <h3>Most Positive Segment (Arbitrary Length)</h3>
+                <div><strong>Sentences {{ pos_segment.start + 1 }}–{{ pos_segment.end + 1 }}</strong></div>
+                <div class="review-score positive">Score: {{ pos_segment.score }}</div>
+
+                <!-- was: <div>{{ pos_segment.text }}</div> -->
+                <div class="chunked"
+                    data-sentences='{{ pos_segment.sentences | tojson }}'
+                    data-chunk="3"></div>
+                <noscript>{{ pos_segment.text }}</noscript>
+                </div>
+            {% endif %}
+
+            {% if neg_segment %}
+                <div class="window-box">
+                <h3>Most Negative Segment (Arbitrary Length)</h3>
+                <div><strong>Sentences {{ neg_segment.start + 1 }}–{{ neg_segment.end + 1 }}</strong></div>
+                <div class="review-score negative">Score: {{ neg_segment.score }}</div>
+
+                <!-- was: <div>{{ neg_segment.text }}</div> -->
+                <div class="chunked"
+                    data-sentences='{{ neg_segment.sentences | tojson }}'
+                    data-chunk="3"></div>
+                <noscript>{{ neg_segment.text }}</noscript>
+                </div>
+            {% endif %}
+            </div>
         </div>
     </div>
 </body>
 </html>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function buildChunked(box, sentences, chunkSize){
+    let idx = 0;
+    const textEl = document.createElement('span');
+
+    const more = document.createElement('a');
+    more.href = '#';
+    more.className = 'more-link';
+
+    function setLabel(){
+      const left = Math.max(0, sentences.length - idx);
+      if (left === 0) { more.remove(); return; }
+      const step = Math.min(chunkSize, left);
+      more.textContent = `… show ${step} more`;
+    }
+
+    function addChunk(e){
+      if (e) e.preventDefault();
+      const end = Math.min(idx + chunkSize, sentences.length);
+      const part = sentences.slice(idx, end).join(' ');
+      textEl.textContent += (idx ? ' ' : '') + part;
+      idx = end;
+      setLabel();
+    }
+
+    more.addEventListener('click', addChunk);
+    more.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addChunk(); }
+    });
+
+    box.appendChild(textEl);
+    box.appendChild(document.createTextNode(' '));
+    box.appendChild(more);
+
+    setLabel();
+    addChunk(); // show first chunk immediately
+  }
+
+  document.querySelectorAll('.chunked').forEach(box => {
+    const sentences = JSON.parse(box.dataset.sentences || '[]');
+    const chunkSize = parseInt(box.dataset.chunk || '3', 10);
+    buildChunked(box, sentences, chunkSize);
+  });
+});
+</script>
+
