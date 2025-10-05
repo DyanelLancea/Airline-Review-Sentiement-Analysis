@@ -14,17 +14,23 @@
         <h1>✈️ Airline Review Sentiment Analysis</h1>
         <form method="POST">
             <label for="airline">Select Airline:</label>
-            <select name="airline" id="airline" required>
-                <option value=""> </option>
-                <option value="All" {% if selected_airline == 'All' %}selected{% endif %}>All</option>
-                {% for airline in airlines %}
-                    <option value="{{ airline }}" {% if airline == selected_airline %}selected{% endif %}>{{ airline }}</option>
-                {% endfor %}
-            </select>
+                <select name="airline" id="airline" required>
+                    <!-- Default blank option (empty) -->
+                    <option value="" selected hidden></option>
+                    
+                    <!-- Options -->
+                    <option value="All" {% if selected_airline == 'All' %}selected{% endif %}>All</option>
+                    {% for airline in airlines %}
+                        <option value="{{ airline }}" {% if airline == selected_airline %}selected{% endif %}>{{ airline }}</option>
+                    {% endfor %}
+                </select>
+
+
 
             <label for="month">Select Month:</label>
                 <select name="month" id="month" required>  
-                    <option value=""> </option> 
+                    <!-- Default blank option (empty) -->
+                    <option value=""selected hidden></option> 
                     <option value="All" {% if selected_month == 'All' %}selected{% endif %}>All</option>
                     {% for month in months %}
                         <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
@@ -44,6 +50,12 @@
                             <div class="review-score positive">Score: {{ score }} <strong>(Airline:</strong> {{ airline }})</div>
                             <div class="key_sentence">Key Sentence: </div>
                             <div>{{ review }}</div>
+                            <button class="btn btn-info" data-toggle="modal" data-target="#reviewModal" 
+                                    data-review="{{ f_review }}" 
+                                    data-score="{{ score }}" 
+                                    data-airline="{{ airline }}">
+                                View Full Review
+                            </button> 
                         </div>
                     {% endfor %}
                 </div>
@@ -59,11 +71,61 @@
                             <div class="review-score negative">Score: {{ score }} <strong>(Airline:</strong> {{ airline }})</div>
                             <div class="key_sentence">Key Sentence: </div>
                             <div>{{ review }}</div>
+                            <button class="btn btn-info" data-toggle="modal" data-target="#reviewModal" 
+                                    data-review="{{ f_review }}" 
+                                    data-score="{{ score }}" 
+                                    data-airline="{{ airline }}">
+                                View Full Review
+                            </button> 
                         </div>
                     {% endfor %}
                 </div>
             {% endif %}
         </div>
+        </script>
+    </div>
+
+    <!-- Modal for Full Review -->
+        <div class="modal fade" id="reviewModal" tabindex="-1" role="dialog" aria-labelledby="reviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="reviewModalLabel">Full Review</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Review:</strong> <span id="fullReviewText"></span></p>
+                        <p><strong>Score:</strong> <span id="fullReviewScore"></span></p>
+                        <p><strong>Airline:</strong> <span id="fullReviewAirline"></span></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bootstrap JS and jQuery -->
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+        <!-- JavaScript to Handle Modal Content -->
+        <script>
+            // Update the modal with the selected review content
+            $('#reviewModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget); // Button that triggered the modal
+                var reviewText = button.data('review'); // Extract the full review content
+                var reviewScore = button.data('score'); // Extract the sentiment score
+                var reviewAirline = button.data('airline'); // Extract the airline name
+                
+                // Update the modal's content
+                var modal = $(this);
+                modal.find('#fullReviewText').text(reviewText);
+                modal.find('#fullReviewScore').text(reviewScore);
+                modal.find('#fullReviewAirline').text(reviewAirline);
+            });
         </script>
     </div>
 </body>
