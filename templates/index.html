@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +6,8 @@
     <title>Airline Reviews</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/script.js" defer></script>
+    <!-- Bootstrap CSS for modal -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -14,15 +15,17 @@
         <form method="POST">
             <label for="airline">Select Airline:</label>
             <select name="airline" id="airline" required>
+                <option value=""> </option>
+                <option value="All" {% if selected_airline == 'All' %}selected{% endif %}>All</option>
                 {% for airline in airlines %}
                     <option value="{{ airline }}" {% if airline == selected_airline %}selected{% endif %}>{{ airline }}</option>
                 {% endfor %}
             </select>
 
             <label for="month">Select Month:</label>
-                <select name="month" id="month" required>
-                    <option value="">--Select Month--</option>
-                    <option value="All" {% if selected_month == 'All' %}selected{% endif %}>All</option>  <!-- Add 'All' option here -->
+                <select name="month" id="month" required>  
+                    <option value=""> </option> 
+                    <option value="All" {% if selected_month == 'All' %}selected{% endif %}>All</option>
                     {% for month in months %}
                         <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
                     {% endfor %}
@@ -31,38 +34,16 @@
             <button type="submit">Filter Reviews</button>
         </form>
 
-        <!-- Top 3 Airlines across all months -->
-            {% if top_airlines %}
-                <div class="top-airlines">
-                    <h2>Top 3 Airlines (All Months)</h2>
-                    <ul>
-                        {% for airline, score in top_airlines %}
-                            <li><strong>{{ airline }}</strong> - Average Score: {{ score|round(2) }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-
-            <!-- Top 3 Airlines for selected month -->
-            {% if top_airlines_month %}
-                <div class="top-airlines-month">
-                    <h2>Top 3 Airlines for {{ selected_month }}</h2>
-                    <ul>
-                        {% for airline, score in top_airlines_month %}
-                            <li><strong>{{ airline }}</strong> - Average Score: {{ score|round(2) }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-
+        <!-- Top Reviews for Selected Airline or All Airlines -->
         <div class="section">
             {% if t_reviews %}
-                <h2>Top Reviews for {{ selected_airline }} in {{ selected_month }}</h2>
+                <h2>Top Reviews for {{ selected_airline if selected_airline != 'All' else 'All Airlines' }} in {{ selected_month if selected_month != 'All' else 'All Months'}}</h2>
                 <div class="review-list">
-                    {% for t_reviews, score in t_reviews %}
+                    {% for review, score, airline,f_review in t_reviews %}
                         <div class="review">
-                            <div class="review-score positive">Score: {{ score }}</div>
-                            <div>{{ t_reviews }}</div>
+                            <div class="review-score positive">Score: {{ score }} <strong>(Airline:</strong> {{ airline }})</div>
+                            <div class="key_sentence">Key Sentence: </div>
+                            <div>{{ review }}</div>
                         </div>
                     {% endfor %}
                 </div>
@@ -71,66 +52,19 @@
 
         <div class="section">
             {% if b_reviews %}
-                <h2>Lowest Reviews for {{ selected_airline }} in {{ selected_month }}</h2>
+                <h2>Lowest Reviews for {{ selected_airline if selected_airline != 'All' else 'All Airlines' }} in {{ selected_month if selected_month != 'All' else 'All Months' }}</h2>
                 <div class="review-list">
-                    {% for b_reviews, score in b_reviews %}
+                    {% for review, score, airline, f_review in b_reviews %}
                         <div class="review">
-                            <div class="review-score negative">Score: {{ score }}</div>
-                            <div>{{ b_reviews }}</div>
+                            <div class="review-score negative">Score: {{ score }} <strong>(Airline:</strong> {{ airline }})</div>
+                            <div class="key_sentence">Key Sentence: </div>
+                            <div>{{ review }}</div>
                         </div>
                     {% endfor %}
                 </div>
             {% endif %}
-            {% if not t_reviews and not b_reviews %}
-                <p>No reviews found for the selected filters.</p>
-            {% endif %}
         </div>
-
-        <div class="window-section">
-            {% if positive_window %}
-                <div class="window-box">
-                    <h3>Most Positive Text Segment (Sliding Window)</h3>
-                    <div><strong>Text:</strong> {{ positive_window.paragraph }}</div>
-                    <div class="review-score positive">Score: {{ positive_window.score }}</div>
-                </div>
-            {% endif %}
-            {% if negative_window %}
-                <div class="window-box">
-                    <h3>Most Negative Text Segment (Sliding Window)</h3>
-                    <div><strong>Text:</strong> {{ negative_window.paragraph }}</div>
-                    <div class="review-score negative">Score: {{ negative_window.score }}</div>
-                </div>
-            {% endif %}
-            <div class="window-section">
-            {% if pos_segment %}
-                <div class="window-box">
-                <h3>Most Positive Segment (Arbitrary Length)</h3>
-                <div><strong>Sentences {{ pos_segment.start + 1 }}–{{ pos_segment.end + 1 }}</strong></div>
-                <div class="review-score positive">Score: {{ pos_segment.score }}</div>
-
-                <!-- was: <div>{{ pos_segment.text }}</div> -->
-                <div class="chunked"
-                    data-sentences='{{ pos_segment.sentences | tojson }}'
-                    data-chunk="3"></div>
-                <noscript>{{ pos_segment.text }}</noscript>
-                </div>
-            {% endif %}
-
-            {% if neg_segment %}
-                <div class="window-box">
-                <h3>Most Negative Segment (Arbitrary Length)</h3>
-                <div><strong>Sentences {{ neg_segment.start + 1 }}–{{ neg_segment.end + 1 }}</strong></div>
-                <div class="review-score negative">Score: {{ neg_segment.score }}</div>
-
-                <!-- was: <div>{{ neg_segment.text }}</div> -->
-                <div class="chunked"
-                    data-sentences='{{ neg_segment.sentences | tojson }}'
-                    data-chunk="3"></div>
-                <noscript>{{ neg_segment.text }}</noscript>
-                </div>
-            {% endif %}
-            </div>
-        </div>
+        </script>
     </div>
 </body>
 </html>
