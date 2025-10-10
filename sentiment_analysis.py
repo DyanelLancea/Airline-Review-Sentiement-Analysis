@@ -154,82 +154,114 @@ def load_dictionary(dict_path):
 
 # Core DP segmentation function
 def segment_text(text, dictionary, max_word_length=30, unknown_penalty=1):
-    '''
-    Segment `text` (string without spaces) into words using dictionary.
-    Returns a segmented string (have spaces). Keeps original casing of input,
-    but algorithm works on lowercase.
-    
-    - max_word_length: limit to consider for last word length (speeds up).
-    - unknown_penalty: penalty (cost) for each character that is not matched to a dictionary word.
-    
-    Strategy:
-      DP over positions. best[i] = (score, last_split_index)
-      Score is total matched characters (so higher is better). Unknown chars are penalized.
-    '''
+    """
+    Segment a spaceless string into words using a dictionary and dynamic programming.
+
+    Parameters
+    ----------
+    text : str or None
+        Input string that may contain no spaces (e.g., "thisproductisamazing").
+        Matching is case-insensitive; original casing is preserved in output slices.
+    dictionary : Collection[str]
+        A collection (ideally a set for O(1) membership) of known words.
+        Words are expected to be lowercase.
+    max_word_length : int, optional
+        Hard cap on the length of candidate chunks to consider ending at each
+        position. Reduces runtime from O(n^2) to ~O(n * max_word_length).
+    unknown_penalty : float|int, optional
+        Per-character penalty applied to chunks not found in the dictionary.
+        Larger values discourage unknown chunks; smaller values allow more fallback.
+
+    Returns
+    -------
+    str
+        A space-separated segmentation of the original text. If no path is
+        reconstructable, the original input (trimmed) is returned.
+
+    Scoring (higher is better)
+    --------------------------
+    * Matching a dictionary word of length L adds: L * (1 + length_bias * (L - 1))
+      (slight preference for longer known words).
+    * Non-dictionary chunks subtract: L * unknown_penalty.
+
+    Notes
+    -----
+    - Complexity ≈ O(n * max_word_length).
+    - For best results, pass `dictionary` as a lowercase set.
+    """
+
     if text is None:
         return ""
     s = text.strip()
     if not s:
         return ""
     
-    s_lower = s.lower() #converts whole input string lowercase for matching
+     # work in lowercase for matching, but keep original `s` for output slices
+    s_lower = s.lower()
     n = len(s_lower)
-    best_score = [-10**9] * (n + 1) # best score so far, ending position i
-    prev_idx = [-1] * (n + 1)   # records where last word started, for backtracking
-    best_score[0] = 0  # empty prefix score 0
-    max_len = min(max_word_length, n)  # for speed, precompute maximum possible word length (min of provided max and n)
-    length_bias = 0.3  # bias towards longer words
-    
-    
-    
-    for i in range(1, n + 1):       
+
+    # DP arrays:
+    # best_score[i] = best attainable score for prefix s_lower[:i]
+    # prev_idx[i]   = index j that gives best split at i (i.e., last token is s[j:i])
+    best_score = [-10**9] * (n + 1) 
+    prev_idx = [-1] * (n + 1)   
+    best_score[0] = 0  # empty prefix has score 0
+    max_len = min(max_word_length, n)  
+    length_bias = 0.3  # positive bias towards longer known words
+
+    # advance the end position i and choose the best start j for the last chunk
+    for i in range(1, n + 1):
         start_j = max(0, i - max_len)
-        # loops through each position i
-        
         for j in range(start_j, i):
-            #checks for best segmentation up to j within max_len
             chunk = s_lower[j:i]
             L = len(chunk)
 
             if chunk in dictionary:
-                # reward/score: matched characters count, with extra bonus for longer words
-                # base = L ; multiplier increases with length_bias
+                # reward known words; length_bias slightly boosts longer matches
                 multiplier = 1.0 + length_bias * (L - 1)
                 score = best_score[j] + (L * multiplier)
             else:
                 # penalise unknown chunk by its length * penalty
                 score = best_score[j] - (L * unknown_penalty)
 
+            # keep the best predecessor for position i
             if score > best_score[i]:
                 best_score[i] = score
                 prev_idx[i] = j
 
-    # reconstruct segmentation
+    # if there is no predecessor set at n, fall back to original string
     if prev_idx[n] == -1:
-        # fallback: no segmentation found, return original
         return s
 
+    # reconstruct tokens by backtracking from the end
     tokens = []
-    i = n #start from the end of the string
+    i = n 
     while i > 0:
         j = prev_idx[i]
         if j == -1:
-            # if something odd, push the remainder and break
+            # safety fallback (shouldn’t normally happen): push remainder and stop
             tokens.append(s[j:i])
             break
+        # slice from original `s` to preserve casing
         tokens.append(s[j:i])
         i = j
     tokens.reverse()
-    # Optionally, try to recover original casing by mapping tokens back to original text slice
-    # We'll return tokens joined by spaces
-    return ' '.join(tokens) #joins them all in a single string
-
-
-
+    return ' '.join(tokens) 
 
 def call_dynamic_prog():
-    '''Call and use this func  when you are presenting req 6'''
-     # Example: load dictionary and apply
+    """
+    Prepare dictionary, run DP segmentation over df['Text Content'],
+    and persist a small sample for verification.
+
+    Assumptions
+    -----------
+    - `load_dictionary(path)` returns a lowercase set of words.
+    - `segment_text(text, dictionary, max_word_length, unknown_penalty)` is defined (DP).
+    - A pandas DataFrame `df` with a column 'Text Content' is in scope.
+    - `words.txt` lives under ./data (adjust path if needed).
+    """
+
+     # 1) Load dictionary (case-insensitive matching; keep it a set for O(1) lookups)
     dict_path = os.path.join('data', 'words.txt')   # adjust path if your words.txt is elsewhere
     dictionary = load_dictionary(dict_path)         # uses words.txt you uploaded. :contentReference[oaicite:2]{index=2}
 
@@ -293,8 +325,6 @@ def normalize_score(score, text_length):
     # makes sure the score doesn't go over 1.0 and below -1.0. 
     # (if the score is -2.5, this will return -1.0)
 
-
-
 def find_extreme_sentences(sentences, afinn_dict):
     '''
     Finds extreme sentences with highest and lowest normalized sentiment scores
@@ -318,7 +348,6 @@ def find_extreme_sentences(sentences, afinn_dict):
     most_negative = min(scored_sentences, key=lambda x: x['score'])
     
     return most_positive, most_negative
-
 
 def sliding_window_analysis_words(text, afinn_dict, window_size=10):
     """
