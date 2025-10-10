@@ -507,9 +507,10 @@ def evaluate_model(df):
 
 
 
-# ---------- NEW: helpers for arbitrary-length best segments (by sentences) ----------
+# arbitrary-length segments
+from math import inf
+
 def kadane_with_indices(arr):
-    """Max subarray sum with start/end indices."""
     if not arr:
         return 0, -1, -1
     best_sum = -inf
@@ -525,22 +526,17 @@ def kadane_with_indices(arr):
             best_sum, best_l, best_r = cur_sum, cur_l, i
     return best_sum, best_l, best_r
 
-def best_sentence_span(text, afinn_dict):
-    """
-    Returns the most positive and most negative continuous sentence spans.
-    Each span includes: text, score (sum), start index, end index, and the list of sentences.
-    """
+def best_paragraph_span(text, afinn_dict):
     sents = [s.strip() for s in sent_tokenize(text or "") if s.strip()]
     if not sents:
         return None, None
 
-    # raw (unnormalized) AFINN sum per sentence
     sent_scores = [calculate_sentiment_score(s, afinn_dict) for s in sents]
 
     # most positive span
     pos_sum, pos_l, pos_r = kadane_with_indices(sent_scores)
 
-    # most negative span = max subarray on negated scores, then flip sign back
+    # most negative span 
     neg_sum_neg, neg_l, neg_r = kadane_with_indices([-x for x in sent_scores])
     neg_sum = -neg_sum_neg
 
@@ -559,7 +555,6 @@ def best_sentence_span(text, afinn_dict):
         "sentences": sents[neg_l:neg_r+1],
     }
     return pos_span, neg_span
-# ---------- end helpers ----------
 
 def full_pipeline():
     afinn_dict = load_afinn_lexicon("data/AFINN-en-165.txt")
