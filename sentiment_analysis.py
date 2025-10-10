@@ -20,14 +20,10 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 from math import inf
 
-# --- Web Framework ---
-from flask import Flask, render_template, request
-import pandas as pd
-from io import StringIO
 
 # Load data
-URL = 'https://raw.githubusercontent.com/DyanelLancea/Airline-Review-Sentiement-Analysis/refs/heads/master/airlines_review.csv'
-df = pd.read_csv(URL)
+PATH = 'data/airlines_review.csv'
+df = pd.read_csv(PATH)
 
 
 def load_afinn_lexicon(afinn_path):
@@ -94,20 +90,20 @@ def remove_special_characters(df, removechar, char):
     return df
 
 
-def load_and_clean_data(URL):
+def load_and_clean_data(PATH):
     """
     3. Data Loading & Cleaning
     Cleans the input csv by dropping duplicates and NaNs, removing noise characters, 
     and standardizing text casing. 
     Args:
-        URL (str): The path or URL of the CSV file containing the data.
+        PATH (str): The path or PATH of the CSV file containing the data.
     
     Returns: a tuple containing..
         df (pd.DataFrame): The cleaned and preprocessed DataFrame 
         sid (SentimentIntensityAnalyzer): Initialized VADER SentimentIntensityAnalyzer for analysis.
     """
     sid = SentimentIntensityAnalyzer()
-    df = pd.read_csv(URL)
+    df = pd.read_csv(PATH)
     
     # Remove duplicates
     df = df.drop_duplicates()
@@ -253,7 +249,7 @@ def call_dynamic_prog():
     )
 
     # Save a quick sample to inspect
-    df[['Text Content', 'Text Content Segmented']].head(20).to_csv('segmentation_sample.csv', index=False)
+    df[['Text Content', 'Text Content Segmented']].head(20).to_csv('data/segmentation_sample.csv', index=False)
 
     # (Then you can use 'Text Content Segmented' for later sentence tokenization or sentiment)
 
@@ -558,9 +554,9 @@ def best_paragraph_span(text, afinn_dict):
 
 def full_pipeline():
     afinn_dict = load_afinn_lexicon("data/AFINN-en-165.txt")
-    df = load_and_clean_data("airlines_review.csv")
+    df, sid = load_and_clean_data("data/airlines_review.csv")
     df = run_sentiment_analysis(df, afinn_dict)
-    evaluate_model(df)
     #create_visualizations(df)
-    df.to_csv("airlines_review_analysis.csv", index=False)
+    #requirement6Function
+    df.to_csv("data/airlines_review_analysis.csv", index=False)
 
