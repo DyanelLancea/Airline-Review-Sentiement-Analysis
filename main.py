@@ -16,7 +16,7 @@ print("🚀 Starting the Flask application...")
 app = Flask(__name__, template_folder='templates')
 
 # --- Run the sentiment analysis pipeline once ---
-if not os.path.exists("airlines_review_analysis.csv"):  # Checks if .csv already exists
+if not os.path.exists("data/airlines_review_analysis.csv"):  # Checks if .csv already exists
     print("🔍 Running data analysis pipeline...") 
     full_pipeline() # If not, it calls full_pipeline(), (the entire sentiment analysis workflow), to generate it.
 else:
@@ -26,7 +26,7 @@ else:
 
 # --- Load processed dataset ---
 print("📊 Loading data...")
-df = pd.read_csv("airlines_review_analysis.csv")
+df = pd.read_csv("data/airlines_review_analysis.csv")
 df['Date Published'] = pd.to_datetime(df['Date Published'])
 
 # --- Define dropdown options ---
@@ -93,6 +93,6 @@ def index():
 
 # --- Entry point ---
 if __name__ == "__main__":
-    if not os.path.exists("airlines_review_analysis.csv"):
+    if not os.path.exists("data/airlines_review_analysis.csv"):
         full_pipeline()
     app.run(debug=False, host="0.0.0.0", port=5000)
