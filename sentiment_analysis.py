@@ -16,11 +16,8 @@ import os
 from nltk.tokenize import sent_tokenize
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-# --- Data Visualization ---
-import matplotlib.pyplot as plt
-from math import inf
 
-
+''' ---------------------- Data Processing ---------------------- '''
 # Load data
 PATH = 'data/airlines_review.csv'
 df = pd.read_csv(PATH)
@@ -66,6 +63,7 @@ def replace_missing_value(df):
             df[col] = df[col].fillna("NA")
     return 
 
+
 def remove_special_characters(df, removechar, char):
     """
     Function used in -> load_and_clean_data().
@@ -92,7 +90,7 @@ def remove_special_characters(df, removechar, char):
 
 def load_and_clean_data(PATH):
     """
-    3. Data Loading & Cleaning
+    Data Loading & Cleaning
     Cleans the input csv by dropping duplicates and NaNs, removing noise characters, 
     and standardizing text casing. 
     Args:
@@ -131,17 +129,22 @@ def load_and_clean_data(PATH):
     df['Name'] = df['Name'].str.lstrip()
     df['Date Published'] = df['Date Published'].str.lstrip()
     df['Text Content'] = df['Text Content'].str.lstrip()
-
+    
+    df.to_csv('data/airlines_review_cleaned.csv', index=False)
+    
     return df, sid
 
 
-''' This is under Requirement 6 of the project '''
 
+''' ---------------------- Sentiment Scoring Algorithm ---------------------- '''
+
+'''Start of Req 6: Word Segmentation using Dynamic Programming'''
 def load_dictionary(dict_path):
-    '''
+    """
+    Function used in -> call_dynamic_prog().
     Load words.txt into a set for O(1) membership tests.
-    Normalize to lowercase.
-    '''
+    Normalize to lowercase. 
+    """
     words = set()
     with open(dict_path, 'r', encoding='utf-8', errors='ignore') as f:  
         # use ignore to skip bad chars, 'open(..) as f' is to auto close when done
@@ -152,116 +155,86 @@ def load_dictionary(dict_path):
             words.add(w.lower()) # store lowercase for matching
     return words
 
-# Core DP segmentation function
+
 def segment_text(text, dictionary, max_word_length=30, unknown_penalty=1):
     """
-    Segment a spaceless string into words using a dictionary and dynamic programming.
-
-    Parameters
-    ----------
-    text : str or None
-        Input string that may contain no spaces (e.g., "thisproductisamazing").
-        Matching is case-insensitive; original casing is preserved in output slices.
-    dictionary : Collection[str]
-        A collection (ideally a set for O(1) membership) of known words.
-        Words are expected to be lowercase.
-    max_word_length : int, optional
-        Hard cap on the length of candidate chunks to consider ending at each
-        position. Reduces runtime from O(n^2) to ~O(n * max_word_length).
-    unknown_penalty : float|int, optional
-        Per-character penalty applied to chunks not found in the dictionary.
-        Larger values discourage unknown chunks; smaller values allow more fallback.
-
-    Returns
-    -------
-    str
-        A space-separated segmentation of the original text. If no path is
-        reconstructable, the original input (trimmed) is returned.
-
-    Scoring (higher is better)
-    --------------------------
-    * Matching a dictionary word of length L adds: L * (1 + length_bias * (L - 1))
-      (slight preference for longer known words).
-    * Non-dictionary chunks subtract: L * unknown_penalty.
-
-    Notes
-    -----
-    - Complexity ≈ O(n * max_word_length).
-    - For best results, pass `dictionary` as a lowercase set.
+    Function used in -> call_dynamic_prog().
+    and is theCore DP segmentation function
+    Segment `text` (string without spaces) into words using dictionary.
+    Returns a segmented string (have spaces). Keeps original casing of input,
+    but algorithm works on lowercase.
+    
+    - max_word_length: limit to consider for last word length (speeds up).
+    - unknown_penalty: penalty (cost) for each character that is not matched to a dictionary word.
+    
+    Strategy:
+      DP over positions. best[i] = (score, last_split_index)
+      Score is total matched characters (so higher is better). Unknown chars are penalized.
     """
-
     if text is None:
         return ""
     s = text.strip()
     if not s:
         return ""
     
-     # work in lowercase for matching, but keep original `s` for output slices
-    s_lower = s.lower()
+    s_lower = s.lower() #converts whole input string lowercase for matching
     n = len(s_lower)
-
-    # DP arrays:
-    # best_score[i] = best attainable score for prefix s_lower[:i]
-    # prev_idx[i]   = index j that gives best split at i (i.e., last token is s[j:i])
-    best_score = [-10**9] * (n + 1) 
-    prev_idx = [-1] * (n + 1)   
-    best_score[0] = 0  # empty prefix has score 0
-    max_len = min(max_word_length, n)  
-    length_bias = 0.3  # positive bias towards longer known words
-
-    # advance the end position i and choose the best start j for the last chunk
-    for i in range(1, n + 1):
+    best_score = [-10**9] * (n + 1) # best score so far, ending position i
+    prev_idx = [-1] * (n + 1)   # records where last word started, for backtracking
+    best_score[0] = 0  # empty prefix score 0
+    max_len = min(max_word_length, n)  # for speed, precompute maximum possible word length (min of provided max and n)
+    length_bias = 0.3  # bias towards longer words
+    
+    
+    
+    for i in range(1, n + 1):       
         start_j = max(0, i - max_len)
+        # loops through each position i
+        
         for j in range(start_j, i):
+            #checks for best segmentation up to j within max_len
             chunk = s_lower[j:i]
             L = len(chunk)
 
             if chunk in dictionary:
-                # reward known words; length_bias slightly boosts longer matches
+                # reward/score: matched characters count, with extra bonus for longer words
+                # base = L ; multiplier increases with length_bias
                 multiplier = 1.0 + length_bias * (L - 1)
                 score = best_score[j] + (L * multiplier)
             else:
                 # penalise unknown chunk by its length * penalty
                 score = best_score[j] - (L * unknown_penalty)
 
-            # keep the best predecessor for position i
             if score > best_score[i]:
                 best_score[i] = score
                 prev_idx[i] = j
 
-    # if there is no predecessor set at n, fall back to original string
+    # reconstruct segmentation
     if prev_idx[n] == -1:
+        # fallback: no segmentation found, return original
         return s
 
-    # reconstruct tokens by backtracking from the end
     tokens = []
-    i = n 
+    i = n #start from the end of the string
     while i > 0:
         j = prev_idx[i]
         if j == -1:
-            # safety fallback (shouldn’t normally happen): push remainder and stop
+            # if something odd, push the remainder and break
             tokens.append(s[j:i])
             break
-        # slice from original `s` to preserve casing
         tokens.append(s[j:i])
         i = j
     tokens.reverse()
-    return ' '.join(tokens) 
+    # Optionally, try to recover original casing by mapping tokens back to original text slice
+    # We'll return tokens joined by spaces
+    return ' '.join(tokens) #joins them all in a single string
+
 
 def call_dynamic_prog():
     """
-    Prepare dictionary, run DP segmentation over df['Text Content'],
-    and persist a small sample for verification.
-
-    Assumptions
-    -----------
-    - `load_dictionary(path)` returns a lowercase set of words.
-    - `segment_text(text, dictionary, max_word_length, unknown_penalty)` is defined (DP).
-    - A pandas DataFrame `df` with a column 'Text Content' is in scope.
-    - `words.txt` lives under ./data (adjust path if needed).
+    This function is called and used to present Requirement 6 of the project.
     """
-
-     # 1) Load dictionary (case-insensitive matching; keep it a set for O(1) lookups)
+     # Example: load dictionary and apply
     dict_path = os.path.join('data', 'words.txt')   # adjust path if your words.txt is elsewhere
     dictionary = load_dictionary(dict_path)         # uses words.txt you uploaded. :contentReference[oaicite:2]{index=2}
 
@@ -284,13 +257,9 @@ def call_dynamic_prog():
     df[['Text Content', 'Text Content Segmented']].head(20).to_csv('data/segmentation_sample.csv', index=False)
 
     # (Then you can use 'Text Content Segmented' for later sentence tokenization or sentiment)
+'''End of Req 6: Word Segmentation using Dynamic Programming'''
 
-
-
-
-# df.to_csv('airlines_review_cleaned.csv', index=False) # Save cleaned data to a new CSV file
-
-
+# save airlines_review_cleaned.csv??
 
 def tokenize_sentences(text):
     '''
@@ -300,7 +269,6 @@ def tokenize_sentences(text):
     if not isinstance(text, str):
         return []
     return sent_tokenize(text)
-
 
 
 def calculate_sentiment_score(sentences, afinn_dict):
@@ -313,6 +281,7 @@ def calculate_sentiment_score(sentences, afinn_dict):
         score += afinn_dict.get(word, 0)    # looks up each word and adds the score
     return score
 
+
 def normalize_score(score, text_length):
     '''
     Calculates the normalization score
@@ -324,6 +293,7 @@ def normalize_score(score, text_length):
     return max(-1.0, min(1.0, normalized))  
     # makes sure the score doesn't go over 1.0 and below -1.0. 
     # (if the score is -2.5, this will return -1.0)
+
 
 def find_extreme_sentences(sentences, afinn_dict):
     '''
@@ -348,6 +318,7 @@ def find_extreme_sentences(sentences, afinn_dict):
     most_negative = min(scored_sentences, key=lambda x: x['score'])
     
     return most_positive, most_negative
+
 
 def sliding_window_analysis_words(text, afinn_dict, window_size=10):
     """
@@ -391,7 +362,7 @@ def sliding_window_analysis_words(text, afinn_dict, window_size=10):
     return most_positive_paragraph, most_negative_paragraph
 
 
-
+'''---------------------- Applying analysis to the dataframe ---------------------- '''
 def run_sentiment_analysis(df, afinn_dict):
     '''
     Apply Analysis to DataFrame
@@ -455,131 +426,6 @@ def run_sentiment_analysis(df, afinn_dict):
     print(" Sentiment Analysis Completed. Saved to airlines_review_analysis.csv.")
 
 
-
-'''
-Evaluation Functions & Application
-Model Evaulation: We shall be evaluating our sentiment analysis based on 4 metrics Accuracy, 
-Precision, Recall and F1 Score.
-'''
-#Function to convert our analysis scores from numbers to postive or negative
-def score_postive_negative(score):
-    if score < -0:
-        return "Negative"
-    elif score >= 0:
-        return "Postive"
-    
-#Function to chnage airline review ratings to postive or negative
-def rating_postive_negative(rating):
-    if rating <= 5:
-        return "Negative"
-    elif rating >= 6:
-        return "Postive"
-
-#Funtion to check if your analysis is True or False 
-def determine_correct_prediction(actual, pred):
-    if actual == pred:
-        return True
-    else:
-        return False
-    
-#Function to calculate accuracy
-def calculate_aaccuracy(whether_correct_pred):
-    return sum(whether_correct_pred)/len(whether_correct_pred)
-
-#Funtion to calculate confusion matrix
-def calculate_confusion_matrix(actual, pred):
-    if actual == 'Postive' and pred == 'Postive':
-        return 'TP'
-    elif actual == 'Negative' and pred == 'Postive':
-        return 'FP'
-    elif actual == 'Negative' and pred == 'Negative':
-        return 'TN'
-    elif actual == 'Postive' and pred == 'Negative':
-        return 'FN'
-
-#Function to calculate precision
-def calculate_precision(confusion_matric):
-    return confusion_matric.count('TP')/(confusion_matric.count('TP')+confusion_matric.count('FP'))
-
-#Funtion to calculate Recall
-def calculate_recall(confusion_matric):
-    return confusion_matric.count('TP')/(confusion_matric.count('TP')+confusion_matric.count('FN'))
-
-#Funtion to Calculate F1 Score
-def calculate_F1score(precision,recall):
-    return 2 * (precision * recall) / (precision + recall)
-
-def evaluate_model(df):
-    '''
-    Call this function to evaluate your model
-    '''
-    print(" Evaluating Model Performance...")
-
-    #Applying the all the functions to our datafraame
-    df['score_postive_negative'] = df.apply(lambda x: score_postive_negative(x['Normalized Sentiment Score']), axis=1)
-    df['rating_postive_negative'] = df.apply(lambda x: rating_postive_negative(x['Rating']), axis=1)
-    df['whether_correct_pred'] = df.apply(lambda x: determine_correct_prediction(x['rating_postive_negative'],x["score_postive_negative"]), axis=1)
-    df['confusion_matrix'] = df.apply(lambda x: calculate_confusion_matrix(x['rating_postive_negative'],x["score_postive_negative"]), axis=1)
-    recall = calculate_recall(df['confusion_matrix'].tolist())
-    precision = calculate_precision(df['confusion_matrix'].tolist())
-
-
-    #Print out the results
-    print('Accuracy of Sentiment Analysis is',calculate_aaccuracy(df['whether_correct_pred']))
-    print(f'Precision of Sentiment Analysis is {precision}')
-    print(f'Recall of Sentiment Analysis is {recall}')
-    print('F1 Score of Sentiment Analysis is',calculate_F1score(precision,recall))
-
-
-
-# arbitrary-length segments
-from math import inf
-
-def kadane_with_indices(arr):
-    if not arr:
-        return 0, -1, -1
-    best_sum = -inf
-    cur_sum = 0
-    best_l = best_r = cur_l = 0
-    for i, x in enumerate(arr):
-        if cur_sum <= 0:
-            cur_sum = x
-            cur_l = i
-        else:
-            cur_sum += x
-        if cur_sum > best_sum:
-            best_sum, best_l, best_r = cur_sum, cur_l, i
-    return best_sum, best_l, best_r
-
-def best_paragraph_span(text, afinn_dict):
-    sents = [s.strip() for s in sent_tokenize(text or "") if s.strip()]
-    if not sents:
-        return None, None
-
-    sent_scores = [calculate_sentiment_score(s, afinn_dict) for s in sents]
-
-    # most positive span
-    pos_sum, pos_l, pos_r = kadane_with_indices(sent_scores)
-
-    # most negative span 
-    neg_sum_neg, neg_l, neg_r = kadane_with_indices([-x for x in sent_scores])
-    neg_sum = -neg_sum_neg
-
-    pos_span = {
-        "text": " ".join(sents[pos_l:pos_r+1]),
-        "score": float(pos_sum),
-        "start": int(pos_l),
-        "end": int(pos_r),
-        "sentences": sents[pos_l:pos_r+1],
-    }
-    neg_span = {
-        "text": " ".join(sents[neg_l:neg_r+1]),
-        "score": float(neg_sum),
-        "start": int(neg_l),
-        "end": int(neg_r),
-        "sentences": sents[neg_l:neg_r+1],
-    }
-    return pos_span, neg_span
 
 def full_pipeline():
     afinn_dict = load_afinn_lexicon("data/AFINN-en-165.txt")
