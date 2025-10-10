@@ -8,7 +8,7 @@ from sentiment_analysis import load_afinn_lexicon
 from nltk.tokenize import sent_tokenize
 
 #Read csv from our github
-df = pd.read_csv("airlines_review_analysis.csv")
+df = pd.read_csv("data/airlines_review_analysis.csv")
 
 '''
 Evaluation Functions
@@ -245,7 +245,7 @@ plt.savefig("visualisations/scatter_official_rank_vs_sentiment.png", dpi=150)
 
 df["Date Published"] = pd.to_datetime(df["Date Published"], errors="coerce")
 
-# Order airlines by median sentiment (high → low)
+# Order airlines by median sentiment (high to low)
 order = (
     df.groupby("Airlines")["Normalized Sentiment Score"]
        .median()
@@ -260,20 +260,20 @@ data_by_airline = [df.loc[df["Airlines"] == a, "Normalized Sentiment Score"].val
 plt.figure(figsize=(10, 6))
 box = plt.boxplot(
     data_by_airline,
-    vert=False,                    # horizontal orientation
-    labels=order,
+    vert=False,                   
+    tick_labels=order,
     showmeans=True,
     patch_artist=True
 )
 
-# Style: soft blue boxes with green mean markers
+# Set colours for easier visualisation
 for patch in box['boxes']:
     patch.set_facecolor("#A7C7E7")
     patch.set_alpha(0.7)
 for mean in box['means']:
     mean.set(marker="^", color="green", markersize=8)
 
-# Aesthetics
+
 plt.title("Sentiment Consistency by Airline — Boxplot (Skytrax Top 10)", fontsize=14, fontweight="bold")
 plt.xlabel("Normalized Sentiment Score", fontsize=12)
 plt.ylabel("Airline", fontsize=12)
@@ -285,7 +285,7 @@ plt.savefig("visualisations/boxplot_sentiment_consistency.png", dpi=150)
 
 # --- Monthly Sentiment: Spotlight One Sinagpore Airline vs Others ---
 
-focus_airline = "Singapore Airlines"   # <- change this to spotlight any airline
+focus_airline = "Singapore Airlines"   
 start = "2020-01-01"
 
 mask = (df["Airlines"].isin(skytrax_top10)) & df["Date Published"].notna()
@@ -300,7 +300,7 @@ wide_sm = wide.rolling(window=3, min_periods=1).mean()
 
 plt.figure(figsize=(12, 5))
 
-# Plot others in light grey
+# Plot others airlines in light grey
 for col in wide_sm.columns:
     if col == focus_airline: 
         continue
@@ -323,13 +323,13 @@ plt.savefig("visualisations/trend_spotlight.png", dpi=150)
 def tokenizer(s):
     return [w for w in s.split() if len(w) > 2]
 
-# Vectorizer with domain stopwords baked in
+# Vectorizer with domain stopwords
 domain_stop = {
     'flight','flights','airline','airlines','plane','travel',
     'singapore','qatar','emirates','air','airways','japan','korean','turkish','france','hainan',
     'nippon','cathay','pacific','review','reviews'
 }
-vectorizer = TfidfVectorizer(tokenizer=tokenizer, stop_words='english', min_df=3)
+vectorizer = TfidfVectorizer(tokenizer=tokenizer, token_pattern=None, stop_words='english', min_df=3)
 
 rows = []
 for airline in skytrax_top10:
@@ -353,7 +353,7 @@ for airline in skytrax_top10:
 # Present as a tidy table
 tfidf_table = pd.DataFrame(rows, columns=["Airline", "Polarity", "Top Terms"]).sort_values(["Airline","Polarity"])
 
-# Optional: save to CSV for your appendix
+# Save to CSV for your appendix
 tfidf_table.to_csv("visualisations/keyword_map_tfidf_top10.csv", index=False)
 
 # --- Negative Postive Word Cloud ---
