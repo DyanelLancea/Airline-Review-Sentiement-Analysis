@@ -1,36 +1,21 @@
 """
-sentiment_analysis.py
-----------------------
-Libary that contains all data preprocessing and sentiment analysis functions
-used for the airline review Flask dashboard.
-
-Functions:
-- load_afinn_lexicon(file_path)
-- clean_text(df)
-- full_pipeline()
+requirement6.py (Word Segmentation)
+--------
+This is the solution for the word segmentation problem.
+This uses dynamic programming.
 """
 
 # --- Core Data Manipulation and NLP ---
 import pandas as pd
-import os
 from nltk.tokenize import sent_tokenize
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-
 
 ''' ---------------------- Data Processing ---------------------- '''
-# Load data
-PATH = 'data/airlines_review.csv'
-df = pd.read_csv(PATH)
-
+# Load exact same data of airline_reviews, but without spaces
+# PATH = 'data/airlines_review_no_space.csv'
+# df = pd.read_csv(PATH)
 
 def load_afinn_lexicon(afinn_path):
-    """
-    2. AFINN/Lexicon Loading from a text file
-    Each line of the file contains a word and its sentiment score,
-    separated by a tab. Returns a dictionary mapping words to scores. (afinn_path)
-    """
-    
-    afinn_dict = {} # initialise an empty dictionary to hold the AFINN lexicon
+    afinn_dict = {}
     try:
         with open(afinn_path, encoding='utf-8') as f:
             for line in f:
@@ -43,220 +28,139 @@ def load_afinn_lexicon(afinn_path):
         print(f"File not found: {afinn_path}")
     return afinn_dict
 
-
 def replace_missing_value(df):
-    """
-    Function used in -> load_and_clean_data().
-    Imputes missing values (NaN) in the DataFrame based on column data type.
-    - String columns (object type) are filled with 'Unknown'.
-    - All other column types (numeric, datetime, etc.) are filled with "NA".
-
-    Args:
-        df (pd.DataFrame): The DataFrame to modify in place.
-    Returns:
-        None: The function modifies the input DataFrame directly.
-    """
     for col in df.columns:
-        if df[col].dtype == 'O':  # Object type (string)
+        if df[col].dtype == 'O':
             df[col] = df[col].fillna('Unknown')
         else:
             df[col] = df[col].fillna("NA")
     return 
 
-
 def remove_special_characters(df, removechar, char):
-    """
-    Function used in -> load_and_clean_data().
-    Removes a predefined list of noise characters from specific text columns.
-
-    - Characters are replaced with a single space in the 'Airlines' column 
-      to prevent word concatenation.
-    - Characters are completely removed (replaced with an empty string) in 
-      the 'Text Content' column.
-
-    Args:
-        df (pd.DataFrame): The DataFrame to process.
-        removechar (list): A list of strings/characters to search for and remove.
-        char (str): An unused parameter (retained from original signature).
-        
-    Returns:
-        pd.DataFrame: The DataFrame with characters removed from specified columns.
-    """
     for char in removechar:
         df['Airlines'] = df['Airlines'].str.replace(char, ' ', regex=False)
         df['Text Content'] = df['Text Content'].str.replace(char, '', regex=False)
     return df
 
-
-def load_and_clean_data(PATH):
-    """
-    Data Loading & Cleaning
-    Cleans the input csv by dropping duplicates and NaNs, removing noise characters, 
-    and standardizing text casing. 
-    Args:
-        PATH (str): The path or PATH of the CSV file containing the data.
-    
-    Returns: a tuple containing..
-        df (pd.DataFrame): The cleaned and preprocessed DataFrame 
-        sid (SentimentIntensityAnalyzer): Initialized VADER SentimentIntensityAnalyzer for analysis.
-    """
-    sid = SentimentIntensityAnalyzer()
-    df = pd.read_csv(PATH)
-    
-    # Remove duplicates
+def load_and_clean_data(df):
+    #df = pd.read_csv(PATH)
     df = df.drop_duplicates()
-    # Remove rows with missing values
     df = df.dropna()
     
-    # characters to remove
     removechar = [ '@', '#', '$', '%', '^', '&', '*', '(', ')',
                    '-', '_', '=', '+', '{', '}', '[', ']', '|',
                    '\\', ':', ';', '"', "'", '<', '>', '?',
                    '/', '~', '`', '✅ Trip Verified', 'Not Verified',
                    'Â Â', '✅ Verified Review']
     
-    # Apply your cleaning steps
     replace_missing_value(df)
     remove_special_characters(df, removechar, char='')
 
-    # Standardize text case
     df['Airlines'] = df['Airlines'].str.title()
     df['Name'] = df['Name'].str.title()
     df['Text Content Lower Case'] = df['Text Content'].str.lower()
 
-    # Remove leading spaces
     df['Airlines'] = df['Airlines'].str.lstrip()
     df['Name'] = df['Name'].str.lstrip()
-    df['Date Published'] = df['Date Published'].str.lstrip()
+    if 'Date Published' in df.columns:
+        df['Date Published'] = df['Date Published'].str.lstrip()
     df['Text Content'] = df['Text Content'].str.lstrip()
     
     df.to_csv('data/airlines_review_cleaned.csv', index=False)
-    
-    return df, sid
-
+    return df
 
 
 ''' ---------------------- Sentiment Scoring Algorithm ---------------------- '''
 
 '''Start of Req 6: Word Segmentation using Dynamic Programming'''
 def load_dictionary(dict_path):
-    """
-    Function used in -> call_dynamic_prog().
-    Load words.txt into a set for O(1) membership tests.
-    Normalize to lowercase. 
-    """
     words = set()
-    with open(dict_path, 'r', encoding='utf-8', errors='ignore') as f:  
-        # use ignore to skip bad chars, 'open(..) as f' is to auto close when done
+    with open(dict_path, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
-            w = line.strip() # strip whitespace/newline
+            w = line.strip()
             if not w:
                 continue
-            words.add(w.lower()) # store lowercase for matching
+            words.add(w.lower())
     return words
 
-
 def segment_text(text, dictionary, max_word_length=30, unknown_penalty=1):
-    """
-    Function used in -> call_dynamic_prog().
-    and is theCore DP segmentation function
-    Segment `text` (string without spaces) into words using dictionary.
-    Returns a segmented string (have spaces). Keeps original casing of input,
-    but algorithm works on lowercase.
-    
-    - max_word_length: limit to consider for last word length (speeds up).
-    - unknown_penalty: penalty (cost) for each character that is not matched to a dictionary word.
-    
-    Strategy:
-      DP over positions. best[i] = (score, last_split_index)
-      Score is total matched characters (so higher is better). Unknown chars are penalized.
-    """
     if text is None:
         return ""
     s = text.strip()
     if not s:
         return ""
     
-    s_lower = s.lower() #converts whole input string lowercase for matching
+    s_lower = s.lower()
     n = len(s_lower)
-    best_score = [-10**9] * (n + 1) # best score so far, ending position i
-    prev_idx = [-1] * (n + 1)   # records where last word started, for backtracking
-    best_score[0] = 0  # empty prefix score 0
-    max_len = min(max_word_length, n)  # for speed, precompute maximum possible word length (min of provided max and n)
-    length_bias = 0.3  # bias towards longer words
-    
-    
+    best_score = [-10**9] * (n + 1)
+    prev_idx = [-1] * (n + 1)
+    best_score[0] = 0
+    max_len = min(max_word_length, n)
+    length_bias = 0.3
     
     for i in range(1, n + 1):       
         start_j = max(0, i - max_len)
-        # loops through each position i
         
         for j in range(start_j, i):
-            #checks for best segmentation up to j within max_len
             chunk = s_lower[j:i]
             L = len(chunk)
 
             if chunk in dictionary:
-                # reward/score: matched characters count, with extra bonus for longer words
-                # base = L ; multiplier increases with length_bias
                 multiplier = 1.0 + length_bias * (L - 1)
                 score = best_score[j] + (L * multiplier)
             else:
-                # penalise unknown chunk by its length * penalty
                 score = best_score[j] - (L * unknown_penalty)
 
             if score > best_score[i]:
                 best_score[i] = score
                 prev_idx[i] = j
 
-    # reconstruct segmentation
     if prev_idx[n] == -1:
-        # fallback: no segmentation found, return original
         return s
 
     tokens = []
-    i = n #start from the end of the string
+    i = n
     while i > 0:
         j = prev_idx[i]
         if j == -1:
-            # if something odd, push the remainder and break
             tokens.append(s[j:i])
             break
         tokens.append(s[j:i])
         i = j
     tokens.reverse()
-    # Optionally, try to recover original casing by mapping tokens back to original text slice
-    # We'll return tokens joined by spaces
-    return ' '.join(tokens) #joins them all in a single string
+    return ' '.join(tokens)
 
+def call_dynamic_prog(df):
+    # Ensure the column is string type
+    df['Text Content'] = df['Text Content'].astype(str)
+    
+    # Checks if there are any spaces in the column Text Content"
+    if df['Text Content'].apply(lambda x: ' ' not in x).any():
+        print("⚠️  No spaces detected. Segmentation needed!"
+              "\n🚧 Running Word Segmentation using Dynamic Programming..."
+              "\n⏱️  This will take a while..")
+        
+        dict_path = 'data/words.txt'    
+        dictionary = load_dictionary(dict_path)         
+        
+        if dictionary:
+            max_word_length = max(len(w) for w in dictionary)
+            max_word_length = min(max_word_length, 30)
+        else:
+            max_word_length = 30
 
-def call_dynamic_prog():
-    """
-    This function is called and used to present Requirement 6 of the project.
-    """
-     # Example: load dictionary and apply
-    dict_path = os.path.join('data', 'words.txt')   # adjust path if your words.txt is elsewhere
-    dictionary = load_dictionary(dict_path)         # uses words.txt you uploaded. :contentReference[oaicite:2]{index=2}
+        # Replace the 'Text Content' column with the segmented version
+        df['Text Content'] = df['Text Content'].astype(str).apply(
+            lambda t: segment_text(t, dictionary, max_word_length=max_word_length, unknown_penalty=1)
+        )
 
-    # Optional: determine a reasonable max_word_length from the dictionary (speeds DP)
-    if dictionary:
-        max_word_length = max(len(w) for w in dictionary)
-        # clamp to a reasonable upper bound (e.g., 30) for performance
-        max_word_length = min(max_word_length, 30)
+        df.to_csv('data/airlines_review_analysis.csv', index=False)    
     else:
-        max_word_length = 30
-
-    # Add segmented column to your dataframe
-    # Assuming df['Text Content'] contains the no-space strings
-
-    df['Text Content Segmented'] = df['Text Content'].astype(str).apply(
-        lambda t: segment_text(t, dictionary, max_word_length=max_word_length, unknown_penalty=1)
-    )
-
-    # Save a quick sample to inspect
-    df[['Text Content', 'Text Content Segmented']].head(20).to_csv('data/segmentation_sample.csv', index=False)
-
-    # (Then you can use 'Text Content Segmented' for later sentence tokenization or sentiment)
+        print("✅ Segmentation not needed!")
+    
+    return df
+    
+    
 '''End of Req 6: Word Segmentation using Dynamic Programming'''
 
 
@@ -366,7 +270,7 @@ def run_sentiment_analysis(df, afinn_dict):
     '''
     Apply Analysis to DataFrame
     '''
-    print(" Running Sentiment Analysis...")
+    print("🏃 Running Sentiment Analysis...")
     
     #Apply tonkenize function into Dataframe
     df['Text Content Tokenized'] = df['Text Content'].apply(tokenize_sentences)
@@ -379,12 +283,6 @@ def run_sentiment_analysis(df, afinn_dict):
 
     #Apply finding extreme sentences function to Dataframe
     df['Extreme Senctences'] = df.apply(lambda x: find_extreme_sentences(x['Text Content Tokenized'],afinn_dict), axis=1)
-
-    #Creating Columns for Most and Least Extreme Sentences
-    # df['Most Positive Senctence'] = df['Extreme Senctences'].apply(lambda x: x[0]['sentence'])
-    # df['Most Positive Senctence Score'] = df['Extreme Senctences'].apply(lambda x: x[0]['score'])
-    # df['Most Negative Senctence'] = df['Extreme Senctences'].apply(lambda x: x[1]['sentence'])
-    # df['Most Negative Senctence Score'] = df['Extreme Senctences'].apply(lambda x: x[1]['score'])
 
     #Creating Columns for Most and Least Extreme Sentences with checks
     df['Most Positive Senctence'] = df['Extreme Senctences'].apply(
@@ -401,34 +299,22 @@ def run_sentiment_analysis(df, afinn_dict):
     df['Sliding Window Results'] = df.apply(lambda x: sliding_window_analysis_words(x['Text Content'],afinn_dict, window_size=10), axis=1)
 
 
-    '''
-    Use this if you are testing with 'airlines_review_no_space.csv
-    '''
-    #Creating Columns for Most Positive and Negative lines of words from sliding window analysis
-    # df['Most Positive Line'] = df['Sliding Window Results'].apply(
-    #     lambda x: x[0]['sentence'] if x and isinstance(x, tuple) and x[0] is not None else None)
-    # df['Most Positive Line Score'] = df['Sliding Window Results'].apply(
-    #     lambda x: x[0]['sentence'] if x and isinstance(x, tuple) and x[0] is not None else None)
-    # df['Most Negative Line'] = df['Sliding Window Results'].apply(
-    #     lambda x: x[0]['sentence'] if x and isinstance(x, tuple) and x[0] is not None else None)
-    # df['Most Negative Line Score'] = df['Sliding Window Results'].apply(
-    #     lambda x: x[0]['sentence'] if x and isinstance(x, tuple) and x[0] is not None else None)
-
     #Creating Columns for Most Positive and Negative lines of words from sliding window analysis
     df['Most Positive Line'] = df['Sliding Window Results'].apply(lambda x: x[0]['paragraph'])
     df['Most Positive Line Score'] = df['Sliding Window Results'].apply(lambda x: x[0]['score'])
     df['Most Negative Line'] = df['Sliding Window Results'].apply(lambda x: x[1]['paragraph'])
     df['Most Negative Line Score'] = df['Sliding Window Results'].apply(lambda x: x[1]['score'])
     #Output results into csv
-    df.to_csv('airlines_review_analysis.csv', index=False)
+    df.to_csv('data/airlines_review_analysis.csv', index=False)
     
-    print(" Sentiment Analysis Completed. Saved to airlines_review_analysis.csv.")
+    print("✅ Sentiment Analysis Completed. Saved to airlines_review_analysis.csv.")
+    return df
 
-def full_pipeline():
+def full_pipeline(df):
     afinn_dict = load_afinn_lexicon("data/AFINN-en-165.txt")
-    df, sid = load_and_clean_data("data/airlines_review.csv")
+    df = call_dynamic_prog(df)
+    df = load_and_clean_data(df)
     df = run_sentiment_analysis(df, afinn_dict)
-    #create_visualizations(df)
-    #requirement6Function
     df.to_csv("data/airlines_review_analysis.csv", index=False)
+    return df
 

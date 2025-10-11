@@ -2,46 +2,48 @@
 main.py
 --------
 This is the Flask application for the Airline Review Sentiment Dashboard.
-This calls the "sentiment_analysis.py" to run the full data processing pipeline. 
+This calls the "sentiment_analysis.py" to run 
 It loads preprocessed sentiment data and serves the interactive web interface.
 """
 
 print("🔧 Importing necessary libraries...")
 from flask import Flask, render_template, request
-import pandas as pd
-from sentiment_analysis import full_pipeline  
+import pandas as pd 
+from sentiment_analysis import full_pipeline
 import os
 
 
 print("🚀 Starting the Flask application...")
 app = Flask(__name__, template_folder='templates')
+df_input = pd.read_csv("data/airlines_review.csv")
 
-# --- Run the sentiment analysis pipeline once ---
+
 if not os.path.exists("data/airlines_review_analysis.csv"):  # Checks if .csv already exists
     print("🔍 Running data analysis pipeline...") 
-    full_pipeline() # If not, it calls full_pipeline(), (the entire sentiment analysis workflow), to generate it.
+    full_pipeline(df_input) # If not, it calls full_pipeline(), (the entire sentiment analysis workflow), to generate it.
 else:
     print("✅ Analysis file found. Loading existing data...") # Saves time as if it already exists, it skips the heavy computation from rerunning 
+        
+      
 
-    
-
-# --- Load processed dataset ---
+        
 print("📊 Loading data...")
 df = pd.read_csv("data/airlines_review_analysis.csv")
-df['Date Published'] = pd.to_datetime(df['Date Published'])
+df['Date Published'] = pd.to_datetime(df['Date Published'],dayfirst = True)
 
 # --- Define dropdown options ---
 order_of_months = ['January','February','March','April','May','June','July',
-                   'August','September','October','November','December']
+                'August','September','October','November','December']
 airlines = df['Airlines'].unique().tolist()
 months = sorted(df['Date Published'].dt.month_name().unique().tolist(),
                 key=lambda x: order_of_months.index(x))
 
 
-# ----------------------------
+
+
+
 # Flask Route
 # ----------------------------
-print("🚀 Application is ready!")
 @app.route('/', methods=['GET', 'POST'])
 def index():
     selected_airline = None
@@ -98,6 +100,5 @@ def index():
 # Entry point
 # ----------------------------
 if __name__ == "__main__":
-    if not os.path.exists("data/airlines_review_analysis.csv"):
-        full_pipeline()
+    print("🚀 Application is ready!")
     app.run(debug=False, host="127.0.0.1", port=5000)
