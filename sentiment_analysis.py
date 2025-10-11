@@ -1,7 +1,7 @@
 """
 sentiment_analysis.py
 ----------------------
-Contains all data preprocessing and sentiment analysis functions
+Libary that contains all data preprocessing and sentiment analysis functions
 used for the airline review Flask dashboard.
 
 Functions:
@@ -259,7 +259,6 @@ def call_dynamic_prog():
     # (Then you can use 'Text Content Segmented' for later sentence tokenization or sentiment)
 '''End of Req 6: Word Segmentation using Dynamic Programming'''
 
-# save airlines_review_cleaned.csv??
 
 def tokenize_sentences(text):
     '''
@@ -424,8 +423,6 @@ def run_sentiment_analysis(df, afinn_dict):
     df.to_csv('airlines_review_analysis.csv', index=False)
     
     print(" Sentiment Analysis Completed. Saved to airlines_review_analysis.csv.")
-
-
 
 def full_pipeline():
     afinn_dict = load_afinn_lexicon("data/AFINN-en-165.txt")

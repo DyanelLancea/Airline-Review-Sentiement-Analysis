@@ -1,8 +1,9 @@
 """
 main.py
 --------
-Flask application for the Airline Review Sentiment Dashboard.
-Loads preprocessed sentiment data and serves the interactive web interface.
+This is the Flask application for the Airline Review Sentiment Dashboard.
+This calls the "sentiment_analysis.py" to run the full data processing pipeline. 
+It loads preprocessed sentiment data and serves the interactive web interface.
 """
 
 print("🔧 Importing necessary libraries...")
@@ -37,7 +38,9 @@ months = sorted(df['Date Published'].dt.month_name().unique().tolist(),
                 key=lambda x: order_of_months.index(x))
 
 
-# --- Flask route ---
+# ----------------------------
+# Flask Route
+# ----------------------------
 print("🚀 Application is ready!")
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -91,7 +94,9 @@ def index():
         top_airlines_month=top_airlines_month
     )
 
-# --- Entry point ---
+# ----------------------------
+# Entry point
+# ----------------------------
 if __name__ == "__main__":
     if not os.path.exists("data/airlines_review_analysis.csv"):
         full_pipeline()

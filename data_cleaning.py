@@ -1,3 +1,9 @@
+"""
+data_cleaning.py
+--------
+This is to visualise the data cleaning process.
+"""
+
 import pandas as pd
 
 # ----------------------------
