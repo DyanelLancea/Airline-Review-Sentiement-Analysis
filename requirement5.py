@@ -198,6 +198,7 @@ def build_year_month(df, afinn_dict, text_col="Text Content"):
     pos = rename_block(out[["Airlines","Year","Month Name"] + [c for c in out.columns if c.startswith("Pos_")]], "Pos")
     neg = rename_block(out[["Airlines","Year","Month Name"] + [c for c in out.columns if c.startswith("Neg_")]], "Neg")
     return pos, neg
+'''End of Requirement 5 functions'''
 
 def main():
     '''Main function to parse arguments, load data, perform analysis, and export results.'''
